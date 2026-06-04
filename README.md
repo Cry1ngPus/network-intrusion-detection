@@ -28,11 +28,12 @@ This project detects four types of network attacks using a Random Forest classif
 
 ## Project Structure
 
-├── explore.py           # Data exploration and cleaning
-├── merge.py             # Merge all CSV files into combined_dataset.csv
-├── train.py             # Binary classification (DDoS vs BENIGN)
-├── train_multiclass.py  # Multiclass detection (v4, current)
-└── README.md
+| File | Description |
+|------|-------------|
+| `explore.py` | Data exploration and cleaning |
+| `merge.py` | Merge all CSV files into combined_dataset.csv |
+| `train.py` | Binary classification (DDoS vs BENIGN) |
+| `train_multiclass.py` | Multiclass detection (v4, current) |
 
 ## Development Notes
 
