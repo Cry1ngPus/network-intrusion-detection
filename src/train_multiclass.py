@@ -1,3 +1,5 @@
+import os
+import joblib
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
@@ -19,7 +21,9 @@ def simplify_label(label):
 
 # Load combined dataset
 print("Loading combined dataset...")
-df = pd.read_csv('combined_dataset.csv')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(SCRIPT_DIR, '..', 'data', 'combined_dataset.csv')
+df = pd.read_csv(DATA_PATH)
 
 # Apply label simplification
 df['Label'] = df['Label'].apply(simplify_label)
@@ -53,3 +57,10 @@ model.fit(X_train, y_train)
 print("\nEvaluation results:")
 y_pred = model.predict(X_test)
 print(classification_report(y_test, y_pred))
+
+# Save trained model to models directory
+MODEL_DIR = os.path.join(SCRIPT_DIR, '..', 'models')
+os.makedirs(MODEL_DIR, exist_ok=True)
+MODEL_PATH = os.path.join(MODEL_DIR, 'rf_multiclass.joblib')
+joblib.dump(model, MODEL_PATH)
+print(f"\nModel saved to {MODEL_PATH}")

@@ -3,9 +3,13 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data')
 
 # Load and clean dataset
-df = pd.read_csv('Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv')
+df = pd.read_csv(os.path.join(DATA_DIR, 'Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv'))
 df.columns = df.columns.str.strip()
 df.replace([np.inf, -np.inf], np.nan, inplace=True)
 df.dropna(inplace=True)

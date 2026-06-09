@@ -1,12 +1,16 @@
 import pandas as pd
 import numpy as np
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data')
 
 # List of all CSV files to merge
 files = [
-    'Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv',
-    'Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv',
-    'Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv',
-    'Wednesday-workingHours.pcap_ISCX.csv'
+    os.path.join(DATA_DIR, 'Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv'),
+    os.path.join(DATA_DIR, 'Friday-WorkingHours-Afternoon-PortScan.pcap_ISCX.csv'),
+    os.path.join(DATA_DIR, 'Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv'),
+    os.path.join(DATA_DIR, 'Wednesday-workingHours.pcap_ISCX.csv'),
 ]
 
 dfs = []
@@ -29,5 +33,5 @@ print("\nLabel distribution:")
 print(combined['Label'].value_counts())
 
 # Save merged dataset
-combined.to_csv('combined_dataset.csv', index=False)
+combined.to_csv(os.path.join(DATA_DIR, 'combined_dataset.csv'), index=False)
 print("\nSaved to combined_dataset.csv")

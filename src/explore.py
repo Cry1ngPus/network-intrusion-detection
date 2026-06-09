@@ -1,8 +1,12 @@
 import pandas as pd
 import numpy as np
+import os
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data')
 
 # Load dataset
-df = pd.read_csv('Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv')
+df = pd.read_csv(os.path.join(DATA_DIR, 'Friday-WorkingHours-Afternoon-DDos.pcap_ISCX.csv'))
 
 # Strip whitespace from column names
 df.columns = df.columns.str.strip()
