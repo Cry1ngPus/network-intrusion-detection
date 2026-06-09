@@ -218,8 +218,8 @@ __marimo__/
 .streamlit/secrets.toml
 *.csv
 *.pkl
+!models/*.pkl
 *.joblib
+!models/*.joblib
 data/*.csv
-models/*.pkl
-models/*.joblib
 *.zip
