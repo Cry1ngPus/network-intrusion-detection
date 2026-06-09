@@ -26,6 +26,22 @@ This project detects four types of network attacks using a Random Forest classif
 | Web Attack | 1.00 | 0.98 | 0.99 |
 | **Overall Accuracy** | | | **1.00** |
 
+## Visualizations
+
+### Confusion Matrix
+![Confusion Matrix](models/confusion_matrix.png)
+
+Only 10 misclassifications out of 18,436 test samples. The 8 Web Attack samples 
+misclassified as BENIGN represent false negatives—a critical concern in security 
+applications where missing attacks is more costly than false alarms.
+
+### Top 15 Feature Importance
+![Feature Importance](models/feature_importance.png)
+
+The most discriminative features include backward packet rate, initial TCP window 
+size, and packet length statistics—all consistent with known network attack 
+signatures.
+
 ## Project Structure
 
 | File | Description |
