@@ -26,6 +26,8 @@ See [`data/README.md`](data/README.md) for download instructions.
 
 ## Results
 
+### Baseline Model (Random Forest, no resampling)
+
 | Class | Precision | Recall | F1-Score |
 |-------|-----------|--------|----------|
 | BENIGN | 1.00 | 1.00 | 1.00 |
@@ -34,15 +36,36 @@ See [`data/README.md`](data/README.md) for download instructions.
 | Web Attack | 1.00 | 0.98 | 0.99 |
 | **Overall Accuracy** | | | **1.00** |
 
-### Confusion Matrix
-![Confusion Matrix](models/confusion_matrix.png)
-
-Only 10 misclassifications out of 18,436 test samples. The 8 Web Attack samples misclassified as BENIGN represent **false negatives**—a critical concern in security applications where missing attacks is more costly than false alarms.
-
-### Top 15 Feature Importance
+### Feature Importance
 ![Feature Importance](models/feature_importance.png)
 
 The most discriminative features include backward packet rate, initial TCP window size, and packet length statistics—all consistent with known network attack signatures.
+
+---
+
+## SMOTE Analysis: A Trade-off Study
+
+The baseline model achieves 0.98 recall on Web Attack due to severe class imbalance (only 2,180 samples vs 30,000 in other classes). To address this, **SMOTE (Synthetic Minority Over-sampling Technique)** was applied to the training set only (never to the test set, to avoid evaluation leakage).
+
+### Confusion Matrix Comparison
+![Confusion Matrix Comparison](models/confusion_matrix_comparison.png)
+
+### Misclassification Analysis
+
+| | Baseline | With SMOTE | Change |
+|---|---|---|---|
+| Web Attack → BENIGN (false negatives) | 6 | 2 | **−4** ✓ |
+| Other-class misclassifications | 13 | 16 | +3 |
+| **Total misclassifications** | **20** | **19** | **−1** |
+
+### Why this trade-off matters
+
+In security systems, **false negatives (missed attacks) are far more costly than false positives**. A missed attack means a successful intrusion; a false alarm wastes analyst time but doesn't compromise the system.
+
+SMOTE reduces Web Attack false negatives from 6 to 2 (a 67% reduction), at the cost of 3 additional misclassifications in other classes. For a security application, this is a **favorable trade-off**.
+### Note on metric precision
+
+Both models show 1.00 across most cells in `classification_report` because scikit-learn rounds to two decimal places. The confusion matrices reveal the actual differences that the aggregated report hides.
 
 ---
 
@@ -51,17 +74,21 @@ The most discriminative features include backward packet rate, initial TCP windo
 ```
 network-intrusion-detection/
 ├── data/
-│   └── README.md              # Dataset download instructions
+│   └── README.md                       # Dataset download instructions
 ├── models/
-│   ├── rf_multiclass.joblib   # Trained Random Forest model
-│   ├── confusion_matrix.png
+│   ├── rf_multiclass.joblib            # Baseline Random Forest model
+│   ├── rf_smote.joblib                 # SMOTE-enhanced Random Forest model
+│   ├── confusion_matrix.png            # Baseline confusion matrix
+│   ├── confusion_matrix_comparison.png # Baseline vs SMOTE comparison
 │   └── feature_importance.png
 ├── src/
-│   ├── explore.py             # Data exploration and cleaning
-│   ├── merge.py               # Merge all CSV files
-│   ├── train.py               # Binary classification (DDoS vs BENIGN)
-│   ├── train_multiclass.py    # Multiclass detection (current)
-│   └── visualize.py           # Generate result plots
+│   ├── explore.py                      # Data exploration and cleaning
+│   ├── merge.py                        # Merge all CSV files
+│   ├── train.py                        # Binary classification (DDoS vs BENIGN)
+│   ├── train_multiclass.py             # Multiclass detection (baseline)
+│   ├── train_smote.py                  # Multiclass detection with SMOTE
+│   ├── visualize.py                    # Baseline visualizations
+│   └── visualize_smote.py              # SMOTE comparison visualization
 ├── requirements.txt
 ├── .gitignore
 └── README.md
@@ -89,9 +116,15 @@ python3 src/merge.py
 python3 src/train_multiclass.py
 ```
 
-### 5. Generate visualizations
+### 5. Train with SMOTE (improved Web Attack recall)
 ```bash
-python3 src/visualize.py
+python3 src/train_smote.py
+```
+
+### 6. Generate visualizations
+```bash
+python3 src/visualize.py          # Baseline plots
+python3 src/visualize_smote.py    # SMOTE comparison plot
 ```
 
 ---
@@ -111,15 +144,16 @@ Four iterations of the multiclass model were developed to address dataset and re
 
 ## Limitations
 
-- Web Attack has only 2,180 samples, leading to slightly lower recall (0.98)
+- SMOTE introduces synthetic samples that may not reflect real-world Web Attack variations
 - Single-model evaluation (Random Forest only); no comparison with XGBoost / LightGBM yet
 - Currently offline analysis only; no real-time packet capture
+- Test set was sampled from the same distribution as training; no evaluation on out-of-distribution traffic
 
 ---
 
 ## Future Work
 
-- [ ] Apply SMOTE oversampling to improve minority class performance
+- [x] ~~Apply SMOTE oversampling to improve minority class performance~~
 - [ ] Benchmark against XGBoost, LightGBM, and simple MLP
 - [ ] Integrate Scapy for real-time packet capture and live detection
 - [ ] Web dashboard for visualizing detection results
