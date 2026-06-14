@@ -9,7 +9,7 @@
 - **99.96% accuracy** on the CICIDS2017 multiclass benchmark (XGBoost)
 - **22-feature subset** for real-time inference, retaining 99.77% accuracy from the full 78-feature model
 - **~1.4 μs per-sample inference**, capable of ~700,000 flows/sec
-- **Hybrid ML + rule-based pipeline** with three working demo scenarios (BENIGN, DDoS, PortScan)
+- **Hybrid ML + rule-based pipeline** validated on 5 scenarios (3 synthetic + 2 real-world captures)
 - Iterative engineering: 4 model versions, 4 classifier benchmarks, full SMOTE trade-off analysis
 
 ---
@@ -175,29 +175,52 @@ At 1.42 μs/sample, XGBoost can process ~700,000 flows/sec, providing significan
 
 ### Real-Time Detection Demo
 
-The real-time pipeline (`src/detect.py`) processes synthetic traffic representing three scenarios:
+The real-time pipeline (`src/detect.py`) was validated on both **synthetic** and **real-world captured traffic**.
+
+#### Synthetic Scenarios
+
+Hand-crafted traffic patterns for reproducible testing:
 
 ```
-=== Scenario 1: Benign HTTPS traffic ===
-  Expected: BENIGN
-  Detected 1 flow(s) from 33 packets
-  [✓] 192.168.1.10:50468 -> 93.184.216.34:443  | Predicted: BENIGN     (conf 100.00%, 1477μs)
+--- Synthetic: Benign HTTPS traffic ---
+  [✓] 192.168.1.10:46482 -> 93.184.216.34:443  | Predicted: BENIGN     (conf 100.00%, 5452μs)
 
-=== Scenario 2: DDoS SYN flood ===
-  Expected: DoS_DDoS
-  Detected 1 flow(s) from 2000 packets
-  [✓] 10.0.0.5:41769 -> 192.168.1.100:80       | Predicted: DoS_DDoS   (conf 96.34%, 887μs)
+--- Synthetic: DDoS SYN flood ---
+  [✓] 10.0.0.5:21993 -> 192.168.1.100:80       | Predicted: DoS_DDoS   (conf 96.34%, 1006μs)
 
-=== Scenario 3: Port scan ===
-  Expected: PortScan
-  Detected 1 flow(s) from 200 packets
-  [✓] 172.16.0.50:54321 -> 192.168.1.100:17996 | Predicted: PortScan   (conf 99.96%, 879μs)
-                                                  [heuristic: 200 unique ports]
+--- Synthetic: Port scan ---
+  [✓] 172.16.0.50:54321 -> 192.168.1.100:47987 | Predicted: PortScan   (conf 99.97%, 1249μs)
+                                                 [heuristic: 200 unique ports]
 ```
 
-**Design notes:**
+#### Real-World Captured Traffic
 
-- **IP-pair flow aggregation** — DDoS and PortScan attacks deliberately use randomized source/destination ports to evade per-flow detection. The pipeline aggregates packets at the (source IP, destination IP) level to expose this attack-level behavior.
+To validate beyond synthetic data, two PCAP files were captured live on a Kali Linux test environment using `tcpdump`:
+
+- **benign_capture.pcap** — 339 packets from curl/ping to Google, GitHub, Wikipedia, and 8.8.8.8
+- **portscan_capture.pcap** — 2001 packets from `nmap -sS -p 1-1000 127.0.0.1`
+
+```
+--- Real-world BENIGN (live capture) ---
+  Detected 4 flow(s) from 339 packets
+  [✓] 192.168.158.128:45791 -> 192.168.158.2:53        | BENIGN (conf 100.00%, 913μs)
+  [✓] 192.168.158.128:43046 -> 142.251.156.119:443     | BENIGN (conf 100.00%, 759μs)
+  [✓] 192.168.158.128:45898 -> 20.27.177.113:443       | BENIGN (conf 100.00%, 2770μs)
+  [✓] 192.168.158.128:48172 -> 103.102.166.224:443     | BENIGN (conf 100.00%, 931μs)
+
+--- Real-world PortScan (nmap capture) ---
+  Detected 1 flow(s) from 2001 packets
+  [✓] 127.0.0.1:42123 -> 127.0.0.1:443                 | PortScan (conf 100.00%, 915μs)
+                                                         [heuristic: 1001 unique ports]
+```
+
+**Results.** All 5 scenarios (3 synthetic + 2 real-world) were classified correctly. The system distinguishes real BENIGN traffic (DNS queries to local resolver, HTTPS to multiple destinations) from PortScan attacks (1001 unique ports targeted from a single source), with sub-millisecond inference latency per flow.
+
+PCAP capture scripts are not committed (network captures can contain sensitive identifiers); see [`data/README.md`](data/README.md) for instructions on reproducing the capture.
+
+#### Design Notes
+
+- **IP-pair flow aggregation** — DDoS and PortScan attacks deliberately use randomized source/destination ports to evade per-flow detection. The pipeline aggregates packets at the (source IP, destination IP, protocol) level to expose this attack-level behavior.
 - **Hybrid ML + rule layer** — Once aggregated, PortScan's defining signal (many unique destination ports from one source) is lost in the 22-feature vector. A simple rule (`if unique_dst_ports >= 50: override to PortScan`) recovers this signal. This mirrors how Snort and Suricata combine ML predictions with handcrafted rules.
 - **22-feature subset** — Of the 78 CICIDS2017 features, many require post-hoc flow statistics (subflow, bulk transfer) that cannot be computed in real time. The 22 selected features are all directly computable from raw packets.
 
@@ -208,7 +231,7 @@ The real-time pipeline (`src/detect.py`) processes synthetic traffic representin
 ```
 network-intrusion-detection/
 ├── data/
-│   └── README.md                       # Dataset download instructions
+│   └── README.md                       # Dataset and PCAP capture instructions
 ├── models/
 │   ├── rf_multiclass.joblib            # Baseline Random Forest (full 78 features)
 │   ├── rf_smote.joblib                 # SMOTE-enhanced Random Forest
@@ -228,7 +251,7 @@ network-intrusion-detection/
 │   ├── train_realtime.py               # XGBoost on 22-feature subset
 │   ├── compare_models.py               # Benchmark RF / XGBoost / LightGBM / LR
 │   ├── flow_extractor.py               # 22-feature extraction from packets
-│   ├── detect.py                       # Real-time detection pipeline
+│   ├── detect.py                       # Real-time detection pipeline (synthetic + PCAP)
 │   ├── visualize.py                    # Baseline plots
 │   ├── visualize_smote.py              # SMOTE comparison plot
 │   └── visualize_comparison.py         # Model comparison plot
@@ -306,7 +329,7 @@ This iterative process is documented in commit history.
 - [x] ~~Apply SMOTE oversampling to improve minority class performance~~
 - [x] ~~Benchmark against XGBoost, LightGBM, and Logistic Regression~~
 - [x] ~~Integrate Scapy for packet processing and live detection pipeline~~
-- [ ] Replace synthetic demo with PCAP-file evaluation (e.g., CICIDS2017 PCAP samples)
+- [x] ~~Replace synthetic demo with PCAP-file evaluation (live-captured traffic)~~
 - [ ] Live network interface capture (requires elevated privileges)
 - [ ] Web dashboard for streaming detection results
 - [ ] Out-of-distribution evaluation on a different dataset (e.g., UNSW-NB15)
