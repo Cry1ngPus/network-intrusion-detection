@@ -224,3 +224,4 @@ __marimo__/
 !models/*.joblib
 data/*.csv
 *.zip
+*.pcap
