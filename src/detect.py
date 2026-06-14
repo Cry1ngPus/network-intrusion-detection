@@ -16,7 +16,7 @@ import random
 import joblib
 import numpy as np
 from collections import defaultdict
-from scapy.all import IP, TCP, Ether, Raw
+from scapy.all import IP, TCP, UDP, Ether, Raw, rdpcap
 import logging
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 
@@ -235,19 +235,47 @@ def main():
     encoder = joblib.load(ENCODER_PATH)
     print(f"Model classes: {list(encoder.classes_)}\n")
 
-    scenarios = [
-        ("Scenario 1: Benign HTTPS traffic", gen_benign_flow, "BENIGN"),
-        ("Scenario 2: DDoS SYN flood",       gen_ddos_flow,    "DoS_DDoS"),
-        ("Scenario 3: Port scan",             gen_portscan_flow, "PortScan"),
+    # Check if user wants to run PCAP mode
+    DATA_DIR = os.path.join(SCRIPT_DIR, '..', 'data')
+
+    pcap_scenarios = [
+        ("Real-world BENIGN (live capture)",  "benign_capture.pcap",   "BENIGN"),
+        ("Real-world PortScan (nmap capture)", "portscan_capture.pcap", "PortScan"),
     ]
 
-    for title, generator, expected in scenarios:
-        print(f"{Color.BOLD}{Color.BLUE}=== {title} ==={Color.RESET}")
+    # Synthetic scenarios (always run)
+    synthetic_scenarios = [
+        ("Synthetic: Benign HTTPS traffic", gen_benign_flow,   "BENIGN"),
+        ("Synthetic: DDoS SYN flood",       gen_ddos_flow,     "DoS_DDoS"),
+        ("Synthetic: Port scan",            gen_portscan_flow, "PortScan"),
+    ]
+
+    # Run synthetic scenarios first
+    print(f"{Color.BOLD}{Color.BLUE}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.BLUE}SYNTHETIC SCENARIOS{Color.RESET}")
+    print(f"{Color.BOLD}{Color.BLUE}{'='*60}{Color.RESET}\n")
+    for title, generator, expected in synthetic_scenarios:
+        print(f"{Color.BOLD}--- {title} ---{Color.RESET}")
         print(f"  Expected: {colorize_label(expected)}")
         packets = generator()
         detect(packets, model, encoder, source_label=expected)
         print()
 
+    # Then run real PCAP scenarios if files exist
+    print(f"{Color.BOLD}{Color.BLUE}{'='*60}{Color.RESET}")
+    print(f"{Color.BOLD}{Color.BLUE}REAL-WORLD PCAP SCENARIOS{Color.RESET}")
+    print(f"{Color.BOLD}{Color.BLUE}{'='*60}{Color.RESET}\n")
+    for title, pcap_file, expected in pcap_scenarios:
+        pcap_path = os.path.join(DATA_DIR, pcap_file)
+        if not os.path.exists(pcap_path):
+            print(f"  [skip] {title}: {pcap_file} not found")
+            continue
+        print(f"{Color.BOLD}--- {title} ---{Color.RESET}")
+        print(f"  Source: {pcap_file}")
+        print(f"  Expected (dominant traffic): {colorize_label(expected)}")
+        packets = rdpcap(pcap_path)
+        detect(packets, model, encoder, source_label=expected)
+        print()
 
 if __name__ == '__main__':
     main()
